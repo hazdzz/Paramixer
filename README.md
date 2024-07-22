@@ -15,7 +15,7 @@ The PyTorch implementation of Paramixer from the paper [*Paramixer: Parameterizi
 ```
 
 ## Datasets
-1. LRA: https://mega.nz/file/sdcU3RKR#Skl5HomJJldPBqI7vfLlSAX8VA0XKWiQSPX1E09dwbk
+1. LRA: https://mega.nz/file/tBdAyCwA#AvMIYJrkLset-Xb9ruA7fK04zZ_Jx2p7rdwrVVaTckE
 
 ## Training Steps
 1. Create a data folder:

@@ -23,8 +23,7 @@ config = {
         "epochs": 50,
         "optimizer": "adamw", # "adamw", "lion" or "tiger"
         "patience": 2,
-        "num_workers": 2,
-        "criteria": 39
+        "num_workers": 2
     },
     "image":{
         "pe_type": "ape", # "nope", "spe" or "ape"
@@ -50,8 +49,7 @@ config = {
         "epochs": 20,
         "optimizer": "adamw", # "adamw", "lion" or "tiger"
         "patience": 1,
-        "num_workers": 2,
-        "criteria": 44
+        "num_workers": 2
     },
     "pathfinder":{
         "pe_type": "ape", # "nope", "spe" or "ape"
@@ -77,11 +75,10 @@ config = {
         "epochs": 50,
         "optimizer": "adamw", # "adamw", "lion" or "tiger"
         "patience": 3,
-        "num_workers": 2,
-        "criteria": 79
+        "num_workers": 2
     },
     "text":{
-        "pe_type": "ape", # "nope", "spe" or "ape"
+        "pe_type": "nope", # "nope", "spe" or "ape"
         "vocab_size": 95 + 1 + 1, # 95 unique symbols + 1 PAD + 1 CLS
         "embed_size": 32,
         "max_seq_len": 4096 + 1,
@@ -104,8 +101,7 @@ config = {
         "epochs": 50,
         "optimizer": "adamw", # "adamw", "lion" or "tiger"
         "patience": 2,
-        "num_workers": 2,
-        "criteria": 78
+        "num_workers": 2
     },
     "retrieval":{
         "pe_type": "ape", # "nope", "spe" or "ape"
@@ -128,10 +124,9 @@ config = {
         "batch_size": 32,
         "lr": 0.001,
         "weight_decay": 0.01,
-        "epochs": 80,
+        "epochs": 20,
         "optimizer": "adamw", # "adamw", "lion" or "tiger"
-        "patience": 3,
-        "num_workers": 2,
-        "criteria": 53
+        "patience": 1,
+        "num_workers": 2
     }
 }
