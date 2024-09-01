@@ -2,7 +2,6 @@ import itertools
 import math
 import torch
 import torch.nn as nn
-import torch.sparse as sparse
 import torch_sparse
 from typing import List, Tuple, Union
 from torch import Tensor
@@ -80,7 +79,7 @@ def BuildMLPBlock(cfg: List[Union[str, int]], in_channels: int, out_channels: in
             layers += [nn.Linear(in_channels, i)]
             in_channels = i
         else:
-            layers += [nn.GELU(approximate='tanh')]
+            layers += [nn.GELU()]
     layers += [nn.Linear(in_channels, out_channels)]
 
     return nn.Sequential(*layers)
