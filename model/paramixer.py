@@ -2,12 +2,13 @@ import itertools
 import math
 import torch
 import torch.nn as nn
-from typing import List, Union
+import torch.sparse as sparse
+import torch_sparse
+from typing import List, Tuple, Union
 from torch import Tensor
-from torch_sparse import spmm
 
 
-def get_chord_indices_assym(n_vec, n_link):
+def get_chord_indices_assym(n_vec, n_link) -> Tuple[List[int], List[int]]:
     """
     Generates position indicies, based on the Chord protocol (incl. itself).
 
@@ -35,7 +36,7 @@ def get_chord_indices_assym(n_vec, n_link):
     return rows, cols
 
 
-def get_dil_indices_assym(n_vec, n_link, n_layer):
+def get_dil_indices_assym(n_vec, n_link, n_layer) -> Tuple[List[int], List[int]]:
     """
     Generates the position indicies, based on the symmetric Chord protocol (incl. itself).
     So n_link is an odd number
@@ -69,7 +70,7 @@ def get_dil_indices_assym(n_vec, n_link, n_layer):
     return dil_ws
 
 
-def MakeMLP(cfg: List[Union[str, int]], in_channels: int, out_channels: int) -> nn.Sequential:
+def BuildMLPBlock(cfg: List[Union[str, int]], in_channels: int, out_channels: int) -> nn.Sequential:
     """
     Constructs an MLP based on a given structural config.
     """
@@ -91,12 +92,12 @@ class MLPBlock(nn.Module):
 
     """
 
-    def __init__(self, cfg, in_dim, out_dim):
+    def __init__(self, cfg: List[Union[str, int]], in_channels: int, out_channels: int) -> None:
         super(MLPBlock, self).__init__()
-        self.network = MakeMLP(cfg, in_dim, out_dim)
+        self.mlp_block = BuildMLPBlock(cfg, in_channels, out_channels)
 
-    def forward(self, data):
-        return self.network(data)
+    def forward(self, input: Tensor) -> Tensor:
+        return self.mlp_block(input)
 
 
 class AttentionModule(nn.Module):
@@ -107,7 +108,7 @@ class AttentionModule(nn.Module):
                  drop_prob,
                  hidden_size, 
                  device
-                 ):
+                 ) -> None:
         super(AttentionModule, self).__init__()
         self.max_seq_len = max_seq_len
         self.protocol = protocol
@@ -117,11 +118,11 @@ class AttentionModule(nn.Module):
 
         if protocol == "dil":
             self.n_links = 9
-            self.protocol_indicies = torch.tensor(
+            self.protocol_indices = torch.tensor(
                                         get_dil_indices_assym(max_seq_len, self.n_links, self.n_W)
                                     ).to(device)
         elif protocol == "chord":
-            self.protocol_indicies = torch.tensor(
+            self.protocol_indices = torch.tensor(
                                         get_chord_indices_assym(max_seq_len, self.n_links)
                                     ).to(device)
 
@@ -146,7 +147,7 @@ class AttentionModule(nn.Module):
 
         self.attn_dropout = nn.Dropout(drop_prob)
 
-    def forward(self, V, input):
+    def forward(self, V: Tensor, input: Tensor) -> Tensor:
         # Iterate over all heads
         # Get V
         V = self.g(V)
@@ -159,15 +160,15 @@ class AttentionModule(nn.Module):
             # Multiply W_m and V, get new V
 
             if self.protocol == "dil":
-                V = spmm(
-                    self.protocol_indicies[w_index],
+                V = torch_sparse.spmm(
+                    self.protocol_indices[w_index],
                     W.view(W.size(0), -1),
                     self.max_seq_len,
                     self.max_seq_len,
                     V
                 )
             else:
-                V = spmm(
+                V = torch_sparse.spmm(
                     self.protocol_indicies,
                     W.view(W.size(0), -1),
                     self.max_seq_len,
@@ -182,7 +183,7 @@ class AttentionModule(nn.Module):
 
 
 class Paramixer(nn.Module):
-    def __init__(self, args, device):
+    def __init__(self, args, device) -> None:
         super(Paramixer, self).__init__()
         self.n_layers = args.n_layers
         self.attention = nn.ModuleList(
@@ -199,7 +200,7 @@ class Paramixer(nn.Module):
 
         )
 
-    def forward(self, embed):
+    def forward(self, embed: Tensor) -> Tensor:
         V = embed
 
         for l in range(self.n_layers):

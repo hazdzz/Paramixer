@@ -2,6 +2,8 @@ import os
 import gc
 import random
 import argparse
+import yaml
+import warnings
 
 import torch
 import torch.nn as nn
@@ -10,7 +12,6 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from lra_config import config
 from model import wrapper
 from utils import lra_dataloader, early_stopping, opt, metrices
 
@@ -30,11 +31,15 @@ def set_env(seed = 3407) -> None:
 
 
 def get_parameters():
-    parser = argparse.ArgumentParser(description="Configure the parameters for the task.")
+    parser = argparse.ArgumentParser(description='Paramixer for lra data')
+    parser.add_argument('--config', type=str, default='lra_config.yaml', help='Path to the yaml configuration file')
     parser.add_argument('--task', type=str, default='image', choices=['listops', 'image', 'pathfinder', 'text', 'retrieval'], help='Name of the task')
-    args_task = parser.parse_args()
+    args = parser.parse_args()
 
-    task_config = config[args_task.task]
+    with open(args.config, 'r') as file:
+        config = yaml.safe_load(file)
+
+    task_config = config[args.task]
 
     for key, value in task_config.items():
         key_type = type(value)
@@ -55,10 +60,11 @@ def get_parameters():
         # This option is crucial for multiple GPUs
         # 'cuda' ≡ 'cuda:0'
         device = torch.device('cuda')
-        torch.cuda.empty_cache() # Clean cache
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
     else:
         device = torch.device('cpu')
-        gc.collect() # Clean cache
+        gc.collect()
 
     return args, device
 
@@ -67,16 +73,16 @@ def prepare_model(args, device):
     torch.autograd.set_detect_anomaly(True)
 
     if args.dataset_name == 'retrieval':
-        model = wrapper.ParamixerLRADual(args, device).to(device)
+        model = wrapper.LRADual(args, device).to(device)
     else:
-        model = wrapper.ParamixerLRASingle(args, device).to(device)
+        model = wrapper.LRASingle(args, device).to(device)
 
     loss = nn.NLLLoss()
 
     es = early_stopping.EarlyStopping(delta=0.0, 
                                       patience=args.patience, 
                                       verbose=True, 
-                                      path="Paramixer_" + args.dataset_name + ".pt")
+                                      path="paramixer_" + args.dataset_name + ".pt")
     
     if args.optimizer == 'adamw': # default optimizer
         optimizer = optim.AdamW(params=model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -265,7 +271,7 @@ def val(model, dataloader, loss_nll, device):
 
 @torch.no_grad()
 def test(args, model, dataloader, loss_nll, device):
-    model.load_state_dict(torch.load("Paramixer_" + args.dataset_name + ".pt"))
+    model.load_state_dict(torch.load("paramixer_" + args.dataset_name + ".pt"))
     model.eval()
 
     loss_meter = metrices.AverageMeter()
@@ -439,7 +445,7 @@ def val_retrieval(model, dataloader, loss_nll, device):
 
 @torch.no_grad()
 def test_retrieval(args, model, dataloader, loss_nll, device):
-    model.load_state_dict(torch.load("Paramixer_" + args.dataset_name + ".pt"))
+    model.load_state_dict(torch.load("paramixer_" + args.dataset_name + ".pt"))
     model.eval()
 
     loss_meter = metrices.AverageMeter()
@@ -465,8 +471,10 @@ def test_retrieval(args, model, dataloader, loss_nll, device):
 
 
 if __name__ == '__main__':
-    SEED = 3407
+    SEED = 42
     set_env(SEED)
+
+    warnings.filterwarnings("ignore", category=UserWarning)
 
     args, device = get_parameters()
     model, loss_nll, optimizer, scheduler, es = prepare_model(args, device)
